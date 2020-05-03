@@ -9,7 +9,7 @@ def lambda_handler(event, context):
     
 def extract_instance_info(response):
     return_val = []
-    for instance_data in response['Reservations'][0]['Instances']:
+    for instance_data['Instances'] in response['Reservations']:
         try:
             tmp = {}
             tmp['id'] = instance_data['InstanceId']
@@ -22,7 +22,6 @@ def extract_instance_info(response):
         except:
             # when the instance is not expected to be started / stopped automatically
             continue
-    print(return_val)
     return return_val
 
 def convert_time(str_time):
