@@ -15,6 +15,8 @@ def extract_instance_info(response):
             tmp['id'] = instance_data['InstanceId']
             tmp['start_time'] = convert_time([tag['Value'] for tag in instance_data['Tags'] if tag['Key'] == 'start-time'][0])
             tmp['stop_time'] = convert_time([tag['Value'] for tag in instance_data['Tags'] if tag['Key'] == 'stop-time'][0])
+            tmp['start_time_holiday'] = convert_time([tag['Value'] for tag in instance_data['Tags'] if tag['Key'] == 'start-time-holiday'][0])
+            tmp['stop_time_holiday'] = convert_time([tag['Value'] for tag in instance_data['Tags'] if tag['Key'] == 'stop-time-holiday'][0])
             tmp['status'] = instance_data['State']['Name']
             return_val.append(tmp)
         except:
@@ -29,43 +31,48 @@ def convert_time(str_time):
     return datetime.time(hour,min)
     
 def manage_instances(instance_list,client):
-    current_time = datetime.datetime.now().time()
     for instance in instance_list:
-        # when the start time and the stop time are set within the same day (i.e. 0600 qand 2300)
-        if instance['start_time'] < instance['stop_time']:
-            if instance['status'] != 'running' and current_time >= instance['start_time']:
-                response = client.start_instances(
-                    InstanceIds=[
-                        instance['id']
-                    ]
-                )
-                print(response)
-            elif instance['status'] == 'running' and current_time >= instance['stop_time']:
-                response = client.stop_instances(
-                    InstanceIds=[
-                        instance['id']
-                    ]
-                )
-                print(response)
-            else:
-                print('no action was taken')
-        else:
-            # when the start time and the stop time are set on different days (i.e. 0600 qand 0030)
-            if instance['status'] != 'running' and current_time >= instance['start_time']:
-                response = client.start_instances(
-                    InstanceIds=[
-                        instance['id']
-                    ]
-                )
-                print(response)
-            elif instance['status'] == 'running' and current_time >= instance['stop_time'] and current_time < instance['start_time']:
-                response = client.stop_instances(
-                    InstanceIds=[
-                        instance['id']
-                    ]
-                )
-                print(response)
-            else:
-                print('no action was taken')
+        required_action = get_required_action(instance)
+        if required_action == "start":
+            response = client.start_instances(
+                InstanceIds=[
+                    instance['id']
+                ]
+            )
+            print(response)
+        elif required_action == "stop":
+            response = client.stop_instances(
+                InstanceIds=[
+                    instance['id']
+                ]
+            )
+            print(response)
 
-    
+def get_required_action(instance):
+    if_holiday = False
+    if datetime.datetime.now().weekday() >= 5:
+        if_holiday = True
+    required_action = "nothing"
+    current_time = datetime.datetime.now().time()
+
+    start_time = instance['start_time']
+    stop_time = instance['stop_time']
+    if if_holiday:
+        start_time = instance["start_time_holiday"]
+        stop_time = instance["stop_time_holiday"]
+
+    if start_time < stop_time:
+        if instance['status'] != 'running' and current_time >= start_time:
+            # 起動・停止が同一日付内で、インスタンスが上がっているべき時間帯にインスタンスが落ちている場合
+            required_action = "start"
+        elif instance['status'] == 'running' and current_time >= stop_time:
+            # 起動・停止が同一日付内で、インスタンスが落ちているべき時間帯にインスタンスが上がっている場合
+            required_action = "stop"
+    else:
+        if instance['status'] != 'running' and current_time >= start_time:
+            # 起動・停止が別の日付内で、インスタンスが上がっているべき時間帯にインスタンスが落ちている場合
+            required_action = "start"
+        elif instance['status'] == 'running' and current_time >= stop_time and current_time < start_time:
+            # 起動・停止が別の日付内で、インスタンスが落ちているべき時間帯にインスタンスが上がっている場合
+            required_action = "stop"
+    return required_action
