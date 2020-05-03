@@ -9,15 +9,15 @@ def lambda_handler(event, context):
     
 def extract_instance_info(response):
     return_val = []
-    for instance_data['Instances'] in response['Reservations']:
+    for instance_data in response['Reservations']:
         try:
             tmp = {}
             tmp['id'] = instance_data['InstanceId']
-            tmp['start_time'] = convert_time([tag['Value'] for tag in instance_data['Tags'] if tag['Key'] == 'start-time'][0])
-            tmp['stop_time'] = convert_time([tag['Value'] for tag in instance_data['Tags'] if tag['Key'] == 'stop-time'][0])
-            tmp['start_time_holiday'] = convert_time([tag['Value'] for tag in instance_data['Tags'] if tag['Key'] == 'start-time-holiday'][0])
-            tmp['stop_time_holiday'] = convert_time([tag['Value'] for tag in instance_data['Tags'] if tag['Key'] == 'stop-time-holiday'][0])
-            tmp['status'] = instance_data['State']['Name']
+            tmp['start_time'] = convert_time([tag['Value'] for tag in instance_data['Instances']['Tags'] if tag['Key'] == 'start-time'][0])
+            tmp['stop_time'] = convert_time([tag['Value'] for tag in instance_data['Instances']['Tags'] if tag['Key'] == 'stop-time'][0])
+            tmp['start_time_holiday'] = convert_time([tag['Value'] for tag in instance_data['Instances']['Tags'] if tag['Key'] == 'start-time-holiday'][0])
+            tmp['stop_time_holiday'] = convert_time([tag['Value'] for tag in instance_data['Instances']['Tags'] if tag['Key'] == 'stop-time-holiday'][0])
+            tmp['status'] = instance_data['Instances']['State']['Name']
             return_val.append(tmp)
         except:
             # when the instance is not expected to be started / stopped automatically
